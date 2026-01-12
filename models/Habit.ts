@@ -5,15 +5,17 @@ export interface Habit {
   createdAt: string; // ISO date string
   completedDates: string[]; // Array of ISO date strings (just YYYY-MM-DD or full ISO)
   icon: string;
+  reminderTime?: string; // e.g., "08:30"
+  notificationId?: string;
 }
 
 export const isCompletedToday = (habit: Habit): boolean => {
   if (!habit.completedDates || habit.completedDates.length === 0) return false;
-  
+
   const lastCompletionStr = habit.completedDates[habit.completedDates.length - 1];
   const lastCompletion = new Date(lastCompletionStr);
   const now = new Date();
-  
+
   return (
     lastCompletion.getFullYear() === now.getFullYear() &&
     lastCompletion.getMonth() === now.getMonth() &&
@@ -23,7 +25,7 @@ export const isCompletedToday = (habit: Habit): boolean => {
 
 export const calculateStreak = (completedDates: string[]): number => {
   if (completedDates.length === 0) return 0;
-  
+
   // Sort dates in descending order and normalize to mid-day to avoid TZ issues
   const sortedDates = [...new Set(completedDates)]
     .map(d => new Date(d).setHours(12, 0, 0, 0))

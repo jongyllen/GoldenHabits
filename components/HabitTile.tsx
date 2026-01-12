@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { Colors } from '../constants/theme';
 import { useHabits } from '../context/HabitContext';
 import { Habit, isCompletedToday } from '../models/Habit';
@@ -12,20 +14,57 @@ interface HabitTileProps {
 export default function HabitTile({ habit }: HabitTileProps) {
     const scheme = useColorScheme() ?? 'light';
     const colors = Colors[scheme];
-    const { toggleHabit } = useHabits();
+    const { toggleHabit, archiveHabit } = useHabits();
+    const router = useRouter();
     const completed = isCompletedToday(habit);
 
+    const handleLongPress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Alert.alert(
+            "Archive Habit",
+            `Are you sure you want to archive "${habit.title}"? You can find it in your history later.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Archive",
+                    style: "destructive",
+                    onPress: () => archiveHabit(habit.id)
+                }
+            ]
+        );
+    };
+
     return (
-        <View style={[styles.container, { backgroundColor: colors.surface }]}>
+        <TouchableOpacity
+            activeOpacity={0.7}
+            onLongPress={handleLongPress}
+            style={[styles.container, { backgroundColor: colors.surface }]}
+        >
             <View style={styles.leftSection}>
                 <View style={[styles.iconContainer, { backgroundColor: completed ? colors.primary : colors.primaryContainer }]}>
                     <Text style={styles.iconText}>{habit.icon}</Text>
                 </View>
                 <View style={styles.textContainer}>
-                    <Text style={[styles.title, { color: colors.onSurface }]}>{habit.title}</Text>
-                    <Text style={[styles.streak, { color: colors.icon }]}>
-                        Current Streak: {habit.streak} 🔥
-                    </Text>
+                    <View style={styles.titleRow}>
+                        <Text style={[styles.title, { color: colors.onSurface }]}>{habit.title}</Text>
+                        <TouchableOpacity
+                            onPress={() => router.push({ pathname: '/modal', params: { id: habit.id } })}
+                            style={styles.editButton}
+                        >
+                            <Ionicons name="pencil" size={14} color={colors.icon} />
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.detailsRow}>
+                        <Text style={[styles.streak, { color: colors.icon }]}>
+                            Current Streak: {habit.streak} 🔥
+                        </Text>
+                        {habit.reminderTime && (
+                            <View style={styles.reminderBadge}>
+                                <Ionicons name="notifications-outline" size={12} color={colors.primary} />
+                                <Text style={[styles.reminderText, { color: colors.primary }]}>{habit.reminderTime}</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
             </View>
 
@@ -35,11 +74,14 @@ export default function HabitTile({ habit }: HabitTileProps) {
                     { borderColor: colors.primary },
                     completed && { backgroundColor: colors.primary }
                 ]}
-                onPress={() => toggleHabit(habit.id)}
+                onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    toggleHabit(habit.id);
+                }}
             >
                 {completed && <Ionicons name="checkmark" size={20} color="#FFF" />}
             </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
     );
 }
 
@@ -78,7 +120,35 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '600',
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 4,
+    },
+    editButton: {
+        marginLeft: 8,
+        padding: 4,
+        opacity: 0.6,
+    },
+    detailsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+    },
+    reminderBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 8,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        backgroundColor: 'rgba(0,0,0,0.03)',
+    },
+    reminderText: {
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 3,
     },
     streak: {
         fontSize: 14,
