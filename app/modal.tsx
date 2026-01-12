@@ -3,19 +3,23 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
-import { Colors } from '../constants/theme';
+import { Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useHabits } from '../context/HabitContext';
+import { useTheme } from '../context/ThemeContext';
 
 const COMMON_ICONS = ['✨', '🏃‍♂️', '💧', '📚', '🧘‍♀️', '🥦', '🛌', '💡', '🍎', '🍵', '🏋️‍♀️', '🎸'];
 
 export default function ModalScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { habits, addHabit, archivedHabits, restoreHabit, updateHabit } = useHabits();
+  const { habits, addHabit, archivedHabits, restoreHabit, updateHabit, deleteHabit } = useHabits();
+  const { colors } = useTheme();
 
   const existingHabit = id ? habits.find(h => h.id === id) : null;
   const [title, setTitle] = useState(existingHabit?.title || '');
   const [icon, setIcon] = useState(existingHabit?.icon || '✨');
+  const [goalDaysPerWeek, setGoalDaysPerWeek] = useState(existingHabit?.goalDaysPerWeek || 7);
+  const [targetValue, setTargetValue] = useState(existingHabit?.targetValue?.toString() || '');
+  const [unit, setUnit] = useState(existingHabit?.unit || '');
 
   const [showReminder, setShowReminder] = useState(!!existingHabit?.reminderTime);
   const [reminderDate, setReminderDate] = useState(() => {
@@ -32,8 +36,6 @@ export default function ModalScreen() {
   const [showPicker, setShowPicker] = useState(false);
 
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const colors = Colors[scheme];
 
   const handleSave = async () => {
     if (title.trim()) {
@@ -41,10 +43,12 @@ export default function ModalScreen() {
         ? `${reminderDate.getHours().toString().padStart(2, '0')}:${reminderDate.getMinutes().toString().padStart(2, '0')}`
         : undefined;
 
+      const numericTarget = targetValue ? parseInt(targetValue, 10) : undefined;
+
       if (id) {
-        await updateHabit(id, title.trim(), icon, reminderTime);
+        await updateHabit(id, title.trim(), icon, goalDaysPerWeek, numericTarget, unit, reminderTime);
       } else {
-        await addHabit(title.trim(), icon, reminderTime);
+        await addHabit(title.trim(), icon, goalDaysPerWeek, numericTarget, unit, reminderTime);
       }
       router.back();
     }
@@ -53,6 +57,17 @@ export default function ModalScreen() {
   const handleRestore = async (id: string) => {
     await restoreHabit(id);
     router.back();
+  };
+
+  const handleDeleteHistory = (habit: any) => {
+    Alert.alert(
+      'Delete from History',
+      `Permanently delete "${habit.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteHabit(habit.id) },
+      ]
+    );
   };
 
   return (
@@ -68,14 +83,21 @@ export default function ModalScreen() {
             <Text style={[styles.label, { color: colors.icon }]}>From History</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionList}>
               {archivedHabits.map(habit => (
-                <TouchableOpacity
-                  key={habit.id}
-                  style={[styles.suggestionItem, { backgroundColor: colors.surface, borderColor: colors.primaryContainer }]}
-                  onPress={() => handleRestore(habit.id)}
-                >
-                  <Text style={styles.suggestionIcon}>{habit.icon}</Text>
-                  <Text style={[styles.suggestionTitle, { color: colors.onSurface }]} numberOfLines={1}>{habit.title}</Text>
-                </TouchableOpacity>
+                <View key={habit.id} style={styles.suggestionWrapper}>
+                  <TouchableOpacity
+                    style={[styles.suggestionItem, { backgroundColor: colors.surface, borderColor: colors.primaryContainer }]}
+                    onPress={() => handleRestore(habit.id)}
+                  >
+                    <Text style={styles.suggestionIcon}>{habit.icon}</Text>
+                    <Text style={[styles.suggestionTitle, { color: colors.onSurface }]} numberOfLines={1}>{habit.title}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.deleteHistoryButton, { backgroundColor: colors.surface, borderColor: colors.primaryContainer }]}
+                    onPress={() => handleDeleteHistory(habit)}
+                  >
+                    <Ionicons name="close-circle" size={20} color={colors.icon} />
+                  </TouchableOpacity>
+                </View>
               ))}
             </ScrollView>
           </View>
@@ -133,6 +155,53 @@ export default function ModalScreen() {
               />
             </View>
           )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.icon }]}>Quantitative Goal (Optional)</Text>
+          <Text style={[styles.helperText, { color: colors.icon }]}>e.g. 5 glasses, 15 pushups, 30 minutes</Text>
+          <View style={styles.row}>
+            <TextInput
+              style={[styles.input, { flex: 1, marginRight: 12, color: colors.onSurface, borderColor: colors.primaryContainer, backgroundColor: colors.surface }]}
+              placeholder="Amount (e.g. 10)"
+              placeholderTextColor={colors.icon}
+              value={targetValue}
+              onChangeText={setTargetValue}
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={[styles.input, { flex: 2, color: colors.onSurface, borderColor: colors.primaryContainer, backgroundColor: colors.surface }]}
+              placeholder="Unit (e.g. mins)"
+              placeholderTextColor={colors.icon}
+              value={unit}
+              onChangeText={setUnit}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.icon }]}>Weekly Goal</Text>
+          <Text style={[styles.helperText, { color: colors.icon }]}>How many days per week do you want to do this?</Text>
+          <View style={styles.frequencyContainer}>
+            {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+              <TouchableOpacity
+                key={num}
+                style={[
+                  styles.frequencyItem,
+                  { backgroundColor: colors.surface, borderColor: colors.primaryContainer },
+                  goalDaysPerWeek === num && { backgroundColor: colors.primary, borderColor: colors.primary }
+                ]}
+                onPress={() => setGoalDaysPerWeek(num)}
+              >
+                <Text style={[
+                  styles.frequencyText,
+                  { color: goalDaysPerWeek === num ? '#FFF' : colors.onSurface }
+                ]}>
+                  {num}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -213,6 +282,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  frequencyContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  frequencyItem: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  frequencyText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  helperText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 8,
+    opacity: 0.8,
+  },
   input: {
     height: 60,
     borderRadius: 16,
@@ -285,14 +377,32 @@ const styles = StyleSheet.create({
   suggestionList: {
     paddingRight: 24,
   },
+  suggestionWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginRight: 12,
+    paddingLeft: 16,
+    paddingRight: 12,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
     borderWidth: 1,
+    borderRightWidth: 0,
+  },
+  deleteHistoryButton: {
+    paddingVertical: 12,
+    paddingRight: 12,
+    paddingLeft: 4,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+    borderWidth: 1,
+    borderLeftWidth: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   suggestionIcon: {
     fontSize: 20,

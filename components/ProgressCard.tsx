@@ -1,45 +1,49 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { StyleSheet, Text, useColorScheme, View } from 'react-native';
-import { Colors } from '../constants/theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface ProgressCardProps {
     progress: number; // 0 to 1
+    totalHabits: number;
+    completedHabits: number;
 }
 
-export default function ProgressCard({ progress }: ProgressCardProps) {
-    const scheme = useColorScheme() ?? 'light';
-    const colors = Colors[scheme];
+export default function ProgressCard({ progress, totalHabits, completedHabits }: ProgressCardProps) {
+    const { colors } = useTheme();
 
     return (
         <LinearGradient
-            colors={[colors.primary, colors.secondary]}
+            colors={colors.tealGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.container}
+            style={[styles.container, colors.cardShadow]}
         >
             <View style={styles.content}>
                 <View style={styles.textContainer}>
-                    <Text style={styles.title}>Daily Completion</Text>
+                    <Text style={styles.title}>Daily Momentum</Text>
                     <Text style={styles.subtitle}>
-                        {Math.round(progress * 100)}% of habits done
+                        {progress === 1 ? 'Perfect day! You cleared it all. ✨' : `${Math.round(progress * 100)}% of your habits are crushed today.`}
                     </Text>
                 </View>
-                <View style={styles.percentageContainer}>
+                <View style={styles.percentageBadge}>
                     <Text style={styles.percentageText}>{Math.round(progress * 100)}%</Text>
                 </View>
             </View>
 
-            {/* Visual progress bar */}
-            <View style={styles.progressBarContainer}>
-                <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
+            <View style={styles.progressBarWrapper}>
+                <View style={styles.progressBarTrack}>
+                    <LinearGradient
+                        colors={['#FFF', 'rgba(255,255,255,0.7)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[styles.progressBarFill, { width: `${progress * 100}%` }]}
+                    />
+                </View>
             </View>
         </LinearGradient>
     );
 }
 
-// Extends Number to include toInt like in Flutter if needed, 
-// but in JS we can just use Math.round
 const styles = StyleSheet.create({
     container: {
         padding: 24,
@@ -49,40 +53,51 @@ const styles = StyleSheet.create({
     content: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
+        alignItems: 'flex-start',
+        marginBottom: 24,
     },
     textContainer: {
         flex: 1,
+        marginRight: 16,
     },
     title: {
         color: '#FFF',
-        fontSize: 20,
-        fontWeight: '700',
-        marginBottom: 4,
+        fontSize: 22,
+        fontWeight: '800',
+        marginBottom: 6,
+        letterSpacing: -0.5,
     },
     subtitle: {
-        color: 'rgba(255, 255, 255, 0.8)',
-        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.85)',
+        fontSize: 15,
+        fontWeight: '500',
+        lineHeight: 20,
     },
-    percentageContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        padding: 12,
-        borderRadius: 20,
+    percentageBadge: {
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     percentageText: {
         color: '#FFF',
         fontWeight: '800',
         fontSize: 18,
     },
-    progressBarContainer: {
-        height: 8,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        borderRadius: 4,
+    progressBarWrapper: {
+        marginTop: 'auto',
+    },
+    progressBarTrack: {
+        height: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        borderRadius: 5,
         overflow: 'hidden',
     },
-    progressBar: {
+    progressBarFill: {
         height: '100%',
-        backgroundColor: '#FFF',
+        borderRadius: 5,
     },
 });
+

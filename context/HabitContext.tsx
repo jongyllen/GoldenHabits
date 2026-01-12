@@ -16,11 +16,14 @@ Notifications.setNotificationHandler({
 interface HabitContextType {
     habits: Habit[];
     archivedHabits: Habit[];
-    addHabit: (title: string, icon: string, reminderTime?: string) => Promise<void>;
+    addHabit: (title: string, icon: string, goalDaysPerWeek: number, targetValue?: number, unit?: string, reminderTime?: string) => Promise<void>;
     toggleHabit: (id: string) => Promise<void>;
+    updateProgress: (id: string, delta: number) => Promise<void>;
     archiveHabit: (id: string) => Promise<void>;
     restoreHabit: (id: string) => Promise<void>;
-    updateHabit: (id: string, title: string, icon: string, reminderTime?: string) => Promise<void>;
+    updateHabit: (id: string, title: string, icon: string, goalDaysPerWeek: number, targetValue?: number, unit?: string, reminderTime?: string) => Promise<void>;
+    deleteHabit: (id: string) => Promise<void>;
+    resetAllData: () => Promise<void>;
     reorderHabits: (newHabits: Habit[]) => Promise<void>;
     debugShiftDates: () => Promise<void>;
     overallProgress: number;
@@ -46,6 +49,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 const refreshStreaks = (list: Habit[]) => list.map(h => ({
                     ...h,
+                    goalDaysPerWeek: h.goalDaysPerWeek || 7,
                     streak: calculateStreak(h.completedDates)
                 }));
 
@@ -145,7 +149,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
-    const addHabit = async (title: string, icon: string, reminderTime?: string) => {
+    const addHabit = async (title: string, icon: string, goalDaysPerWeek: number, targetValue?: number, unit?: string, reminderTime?: string) => {
         const hId = Math.random().toString(36).substring(7);
         const newHabit: Habit = {
             id: hId,
@@ -155,6 +159,10 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createdAt: new Date().toISOString(),
             completedDates: [],
             reminderTime,
+            goalDaysPerWeek,
+            targetValue,
+            unit,
+            progressLog: {},
         };
         const updated = [...habits, newHabit];
         await saveHabits(updated, archivedHabits);
@@ -167,27 +175,89 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const toggleHabit = async (id: string) => {
         const now = new Date();
         const todayStr = now.toISOString();
+        const todayKey = now.toDateString();
 
         const updated = habits.map(h => {
             if (h.id === id) {
                 let newDates = [...h.completedDates];
-                if (isCompletedToday(h)) {
+                let newProgress = { ...(h.progressLog || {}) };
+                const isDone = isCompletedToday(h);
+
+                if (isDone) {
+                    // Unticking
                     newDates = newDates.filter(d => {
                         const date = new Date(d);
                         return !(date.getFullYear() === now.getFullYear() &&
                             date.getMonth() === now.getMonth() &&
                             date.getDate() === now.getDate());
                     });
+                    // If quantitative, also clear progress for today or leave it?
+                    // Let's clear it to 0 if unticked manually
+                    if (h.targetValue) {
+                        newProgress[todayKey] = 0;
+                    }
                 } else {
+                    // Ticking
                     newDates.push(todayStr);
+                    // If quantitative, fill progress to target
+                    if (h.targetValue) {
+                        newProgress[todayKey] = h.targetValue;
+                    }
                 }
+
                 const updatedHabit = {
                     ...h,
                     completedDates: newDates,
+                    progressLog: newProgress,
                     streak: calculateStreak(newDates)
                 };
 
                 // Reschedule notifications based on completion status
+                if (updatedHabit.reminderTime) {
+                    scheduleNotification(updatedHabit);
+                }
+
+                return updatedHabit;
+            }
+            return h;
+        });
+        await saveHabits(updated, archivedHabits);
+    };
+
+    const updateProgress = async (id: string, delta: number) => {
+        const now = new Date();
+        const todayStr = now.toISOString();
+        const todayKey = now.toDateString();
+
+        const updated = habits.map(h => {
+            if (h.id === id && h.targetValue) {
+                const currentProgress = (h.progressLog?.[todayKey] || 0);
+                const newCount = Math.max(0, currentProgress + delta);
+
+                let newDates = [...h.completedDates];
+                const alreadyDone = isCompletedToday(h);
+
+                if (newCount >= h.targetValue && !alreadyDone) {
+                    newDates.push(todayStr);
+                } else if (newCount < h.targetValue && alreadyDone) {
+                    newDates = newDates.filter(d => {
+                        const date = new Date(d);
+                        return !(date.getFullYear() === now.getFullYear() &&
+                            date.getMonth() === now.getMonth() &&
+                            date.getDate() === now.getDate());
+                    });
+                }
+
+                const updatedHabit = {
+                    ...h,
+                    progressLog: {
+                        ...(h.progressLog || {}),
+                        [todayKey]: newCount
+                    },
+                    completedDates: newDates,
+                    streak: calculateStreak(newDates)
+                };
+
                 if (updatedHabit.reminderTime) {
                     scheduleNotification(updatedHabit);
                 }
@@ -223,15 +293,25 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    const deleteHabit = async (id: string) => {
+        const newArchived = archivedHabits.filter(h => h.id !== id);
+        await saveHabits(habits, newArchived);
+    };
+
+    const resetAllData = async () => {
+        await AsyncStorage.clear();
+        setHabits([]);
+        setArchivedHabits([]);
+    };
+
     const reorderHabits = async (newHabits: Habit[]) => {
         await saveHabits(newHabits, archivedHabits);
     };
 
-    const updateHabit = async (id: string, title: string, icon: string, reminderTime?: string) => {
+    const updateHabit = async (id: string, title: string, icon: string, goalDaysPerWeek: number, targetValue?: number, unit?: string, reminderTime?: string) => {
         const habit = habits.find(h => h.id === id);
         if (!habit) return;
-
-        const updatedHabit: Habit = { ...habit, title, icon, reminderTime };
+        const updatedHabit: Habit = { ...habit, title, icon, reminderTime, goalDaysPerWeek, targetValue, unit };
         const updated = habits.map(h => h.id === id ? updatedHabit : h);
         await saveHabits(updated, archivedHabits);
 
@@ -267,7 +347,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : 0;
 
     return (
-        <HabitContext.Provider value={{ habits, archivedHabits, addHabit, toggleHabit, archiveHabit, restoreHabit, updateHabit, reorderHabits, debugShiftDates, overallProgress }}>
+        <HabitContext.Provider value={{ habits, archivedHabits, addHabit, toggleHabit, updateProgress, archiveHabit, restoreHabit, updateHabit, deleteHabit, resetAllData, reorderHabits, debugShiftDates, overallProgress }}>
             {children}
         </HabitContext.Provider>
     );

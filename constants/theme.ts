@@ -8,7 +8,31 @@ import { Platform } from 'react-native';
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
-export const Colors = {
+export interface ThemeColors {
+  text: string;
+  background: string;
+  tint: string;
+  icon: string;
+  tabIconDefault: string;
+  tabIconSelected: string;
+  primary: string;
+  secondary: string;
+  surface: string;
+  onSurface: string;
+  primaryContainer: string;
+  secondaryContainer: string;
+  goldGradient: readonly [string, string, ...string[]];
+  tealGradient: readonly [string, string, ...string[]];
+  cardShadow: {
+    shadowColor: string;
+    shadowOffset: { width: number; height: number };
+    shadowOpacity: number;
+    shadowRadius: number;
+    elevation: number;
+  };
+}
+
+export const Colors: { light: ThemeColors; dark: ThemeColors } = {
   light: {
     text: '#11181C',
     background: '#FFFFFF',
@@ -20,8 +44,17 @@ export const Colors = {
     secondary: '#002D36', // Deep Teal
     surface: '#F8F9FA',
     onSurface: '#11181C',
-    primaryContainer: '#FFF8E1',
-    secondaryContainer: '#E0F2F1',
+    primaryContainer: '#FDF7E2', // Slightly warmer, more subtle
+    secondaryContainer: '#F0F9F8', // More subtle teal background
+    goldGradient: ['#E6B800', '#FFD700', '#DAA520'] as const, // Less harsh, more balanced
+    tealGradient: ['#006064', '#009688', '#4DB6AC'] as const, // Muted-premium teal
+    cardShadow: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.04,
+      shadowRadius: 16,
+      elevation: 4,
+    }
   },
   dark: {
     text: '#ECEDEE',
@@ -36,6 +69,15 @@ export const Colors = {
     onSurface: '#ECEDEE',
     primaryContainer: '#2c2c2c',
     secondaryContainer: '#1a1a1a',
+    goldGradient: ['#FFD700', '#D4AF37', '#8B4513'] as const,
+    tealGradient: ['#00796B', '#004D40', '#002D36'] as const,
+    cardShadow: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.2,
+      shadowRadius: 24,
+      elevation: 8,
+    }
   },
 };
 

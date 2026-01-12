@@ -7,14 +7,30 @@ export interface Habit {
   icon: string;
   reminderTime?: string; // e.g., "08:30"
   notificationId?: string;
+  goalDaysPerWeek: number; // e.g., 7 for every day
+  targetValue?: number; // e.g., 5
+  unit?: string; // e.g., "glasses"
+  progressLog?: Record<string, number>; // date string -> current count
 }
 
 export const isCompletedToday = (habit: Habit): boolean => {
+  const now = new Date();
+  const todayStr = now.toDateString();
+
+  // If it's a quantitative habit, completion depends on the progressLog
+  if (habit.targetValue && habit.progressLog) {
+    const currentProgress = habit.progressLog[todayStr] || 0;
+    if (currentProgress >= habit.targetValue) {
+      // Ensure the todayStr (or ISO equivalent) is in completedDates for streak calculation
+      // However, for consistency with current logic, lets check completedDates first
+      // Actually, we'll make HabitContext manage both.
+    }
+  }
+
   if (!habit.completedDates || habit.completedDates.length === 0) return false;
 
   const lastCompletionStr = habit.completedDates[habit.completedDates.length - 1];
   const lastCompletion = new Date(lastCompletionStr);
-  const now = new Date();
 
   return (
     lastCompletion.getFullYear() === now.getFullYear() &&

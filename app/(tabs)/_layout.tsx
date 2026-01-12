@@ -1,12 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const { colors } = useTheme();
 
   return (
     <Tabs
@@ -33,6 +31,13 @@ export default function TabLayout() {
         options={{
           title: 'Statistics',
           tabBarIcon: ({ color }) => <Ionicons size={28} name="stats-chart" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <Ionicons size={28} name="settings-outline" color={color} />,
         }}
       />
     </Tabs>
