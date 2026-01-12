@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useHabits } from '../context/HabitContext';
 import { useTheme } from '../context/ThemeContext';
-import { Habit, isCompletedToday } from '../models/Habit';
+import { Habit } from '../models/Habit';
+import { toDateString } from '../utils/dateUtils';
+import { isHabitCompletedToday } from '../utils/habitUtils';
+import { HabitIcon } from './HabitTile/HabitIcon';
+import { HabitProgress } from './HabitTile/HabitProgress';
 
 interface HabitTileProps {
     habit: Habit;
@@ -17,10 +20,9 @@ export default function HabitTile({ habit }: HabitTileProps) {
     const { toggleHabit, archiveHabit, updateProgress } = useHabits();
     const router = useRouter();
 
-    const now = new Date();
-    const todayKey = now.toDateString();
-    const currentProgress = habit.progressLog?.[todayKey] || 0;
-    const isCompleted = isCompletedToday(habit);
+    const isCompleted = useMemo(() => isHabitCompletedToday(habit), [habit]);
+    const todayKey = useMemo(() => toDateString(new Date()), []);
+    const currentProgress = (habit.progressLog?.[todayKey] || 0);
 
     const handleToggle = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -61,36 +63,10 @@ export default function HabitTile({ habit }: HabitTileProps) {
                 colors.cardShadow
             ]}
         >
-            {/* Progress Background Overlay */}
-            {habit.targetValue && progressPercent > 0 && (
-                <View
-                    style={[
-                        styles.progressOverlay,
-                        {
-                            width: `${progressPercent * 100}%`,
-                            backgroundColor: isCompleted ? colors.primary + '1A' : colors.primary + '0D'
-                        }
-                    ]}
-                />
-            )}
+            <HabitProgress progressPercent={progressPercent} isCompleted={isCompleted} />
 
             <View style={styles.content}>
-                <View style={styles.iconContainer}>
-                    {isCompleted ? (
-                        <LinearGradient
-                            colors={colors.goldGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.iconGradient}
-                        >
-                            <Text style={styles.iconText}>{habit.icon}</Text>
-                        </LinearGradient>
-                    ) : (
-                        <View style={[styles.iconPlaceholder, { backgroundColor: colors.primaryContainer }]}>
-                            <Text style={styles.iconText}>{habit.icon}</Text>
-                        </View>
-                    )}
-                </View>
+                <HabitIcon icon={habit.icon} isCompleted={isCompleted} />
 
                 <View style={styles.textContainer}>
                     <Text style={[styles.title, { color: colors.onSurface }, isCompleted && styles.completedText]}>
@@ -148,36 +124,10 @@ const styles = StyleSheet.create({
         marginHorizontal: 4,
         overflow: 'hidden',
     },
-    progressOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-    },
     content: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-    },
-    iconContainer: {
-        marginRight: 16,
-    },
-    iconGradient: {
-        width: 52,
-        height: 52,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    iconPlaceholder: {
-        width: 52,
-        height: 52,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    iconText: {
-        fontSize: 24,
     },
     textContainer: {
         flex: 1,

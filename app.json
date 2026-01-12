@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jongyllen.goldenhabits"
+      "bundleIdentifier": "com.jongyllen.goldenhabits",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.jongyllen.goldenhabits",
@@ -46,6 +49,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e35d9088-8f0b-4ed4-ba24-0e64f5888448"
+      }
     }
   }
 }
